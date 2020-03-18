@@ -184,3 +184,32 @@ class CmuConfig(DatasetConfig):
         self.reference_feature_poitions = global_opts['cmu_corr_path'] + '_reference_feature_positions'
 
         self.point_cloud_root = os.path.join(root, 'data_for_3d_segmentation_training')
+
+        
+        
+class PolaConfig(DatasetConfig):
+    def __init__(self):
+        super(PolaConfig, self).__init__()
+        root = global_opts['pola_path']
+
+        self.train_im_folder = os.path.join(root, 'leftImg8bit', 'train')
+        self.train_seg_folder = os.path.join(root, 'gtFine', 'train')
+
+        self.train_extra_im_folder = os.path.join(root, 'leftImg8bit_trainextra' 'leftImg8bit', 'train_extra')
+        self.train_extra_seg_folder = os.path.join(root, 'gtCoarse', 'gtCoarse', 'train_extra')
+
+        self.val_im_folder = os.path.join(root, 'leftImg8bit', 'val')
+        self.val_seg_folder = os.path.join(root, 'gtFine', 'val')
+        self.test_im_folder = os.path.join(root, 'leftImg8bit', 'test')
+
+        self.im_file_ending = 'leftImg8bit.png'
+        self.seg_file_ending = 'gtFine_labelIds.png'
+
+        ignore_label = 255
+        self.ignore_label = ignore_label
+        self.id_to_trainid = {-1: ignore_label, 0: ignore_label, 1: ignore_label, 2: ignore_label,
+                              3: ignore_label, 4: ignore_label, 5: ignore_label, 6: ignore_label,
+                              7: 0, 8: 1, 9: ignore_label, 10: ignore_label, 11: 2, 12: 3, 13: 4,
+                              14: ignore_label, 15: ignore_label, 16: ignore_label, 17: 5,
+                              18: ignore_label, 19: 6, 20: 7, 21: 8, 22: 9, 23: 10, 24: 11, 25: 12, 26: 13, 27: 14,
+                              28: 15, 29: ignore_label, 30: ignore_label, 31: 16, 32: 17, 33: 18}
