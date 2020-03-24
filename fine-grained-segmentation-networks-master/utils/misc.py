@@ -25,7 +25,8 @@ def get_root():
 def get_global_opts():
     # Default options:
     opts = {
-        "result_path": 'dummy/path',
+        "result_path": "/media/HDD1/NsemSEG/Result_fold/",
+        "models_path": "/home/tpetitjean/NsemSEG_clusturing/fine-grained-segmentation-networks/models/",
         "cityscapes_path": 'dummy/path',
         "vistas_path": 'dummy/path',
         "wildash_root_path": 'dummy/path',
@@ -35,8 +36,8 @@ def get_global_opts():
         "cmu_root_path": 'dummy/path',
         "cmu_corr_path": 'dummy/path',
         "cmu_im_path": 'dummy/path',
+        "pola_path": "/media/HDD1/datasets/Creusot_Jan15/Creusot_3",
     }
-
     global_opts_path = os.path.join(get_root(), 'global_opts.json')
     if os.path.exists(global_opts_path):
         with open(global_opts_path, 'r') as opts_file:
