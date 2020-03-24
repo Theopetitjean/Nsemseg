@@ -95,7 +95,7 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
         corr_set_config2 = data_configs.RobotcarConfig()
 
     ref_image_lists = [corr_set_config.reference_image_list]
-    # corr_im_paths = [corr_set_config.correspondence_im_path]
+    corr_im_paths = [corr_set_config.correspondence_im_path]
     ref_featurs_pos = [corr_set_config.reference_feature_poitions]
 
     input_transform = model_config.input_transform
@@ -296,21 +296,22 @@ def generate_name_of_result_folder(args):
         startnetstr = 'map1'
     elif 'cs' == args['startnet']:
         startnetstr = 'map0'
+    elif 'pola' == args['startnet']:
+        startnetstr = 'map2'
     else:
         startnetstr = 'other'
 
     cluster_str = 'features%d' % (args['max_features_per_image'])
 
     if args['feature_hinge_loss_weight'] == 0:
-        result_folder = 'cluster-%s-%s-cn%d-ci%d-vi%d-wc%.5f-ws%.5f-%s-valm-%s-%.10flr' % (
+        result_folder = 'cluster-%s-%s-cn%d-ci%d-vi%d' % (
             args['corr_set'], startnetstr, args['n_clusters'], args['cluster_interval'],
-            args['val_interval'], args['corr_loss_weight'], args['seg_loss_weight'],
-            cluster_str, args['feature_distance_measure'], args['lr'])
+            args['val_interval'])
     else:
-        result_folder = 'cluster-%s-%s-cn%d-ci%d-vi%d-wc%.5f-ws%.5f-wf%.5f-%s-valm-%s-%.10flr' % (
+        result_folder = 'cluster-%s-%s-cn%d-ci%d-vi%d-ws%.5f-wf%.5f-%s-valm' % (
             args['corr_set'], startnetstr, args['n_clusters'], args['cluster_interval'],
-            args['val_interval'], args['corr_loss_weight'], args['seg_loss_weight'],
-            args['feature_hinge_loss_weight'], cluster_str, args['feature_distance_measure'], args['lr'])
+            args['val_interval'],args['seg_loss_weight'],
+            args['feature_hinge_loss_weight'], cluster_str)
 
     return os.path.join(results_path, result_folder), os.path.join(global_opts['result_path'], result_folder)
 
@@ -322,10 +323,12 @@ def get_path_of_startnet(args):
         return os.path.join(global_opts['result_path'], 'base-networks', 'pspnet101_cs_vis.pth')
     elif args['startnet'] == 'cs':
         return os.path.join(global_opts['result_path'], 'base-networks', 'pspnet101_cityscapes.pth')
+    elif args['startnet'] == 'pola':
+        return os.path.join(global_opts['models_path'],'model_configs.py')
 
 
 def train_with_clustering_experiment(args):
-    if args['startnet'] in ['vis', 'cs']:
+    if args['startnet'] in ['vis', 'cs' ,'pola']:
         startnet = get_path_of_startnet(args)
     else:
         startnet = args['startnet']
@@ -347,14 +350,14 @@ if __name__ == '__main__':
         'momentum': 0.9,
 
         # starting network settings
-        'startnet': 'vis',  # specify full path or set to 'vis' for network trained with vistas + cityscapes or 'cs' for network trained with cityscapes
+        'startnet': 'pola',  # specify full path or set to 'vis' for network trained with vistas + cityscapes or 'cs' for network trained with cityscapes
         'use_original_base': False,  # must be true if starting from classification network
 
         # set to '' to start training from beginning and 'latest' to use last checkpoint
-        'snapshot': 'latest',
+        'snapshot': '',
 
         # dataset settings
-        'corr_set': 'cmu',  # 'cmu', 'rc', 'both' or 'none'
+        'corr_set': 'pola',  # 'cmu', 'rc', 'both' or 'none'
         'max_features_per_image': 500,  # dont set to high (RAM runs out)
 
         # clustering settings
