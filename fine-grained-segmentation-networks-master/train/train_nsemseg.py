@@ -19,14 +19,14 @@ import utils.joint_transforms as joint_transforms
 import utils.transforms as extended_transforms
 import utils.corr_transforms as corr_transforms
 
-from datasets import correspondences, merged
+from datasets import correspondences, merged , Poladata
 from models import model_configs
 from utils.misc import check_mkdir, AverageMeter, freeze_bn, get_global_opts, rename_keys_to_match, get_latest_network_name, clean_log_before_continuing, load_resnet101_weights, get_network_name_from_iteration
 from utils.validator import CorrValidator
 from layers.feature_loss import FeatureLoss
 from layers.cluster_correspondence_loss import ClusterCorrespondenceLoss
 from clustering import clustering
-from clustering.cluster_tools import extract_features_for_reference, save_cluster_features_as_segmentations, assign_cluster_ids_to_correspondence_points
+from clustering.cluster_tools import extract_features_for_reference_nocorr, save_cluster_features_as_segmentations, assign_cluster_ids_to_correspondence_points
 from clustering.clustering import preprocess_features
 
 
@@ -95,17 +95,24 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
         corr_set_config2 = data_configs.RobotcarConfig()
 
     ref_image_lists = [corr_set_config.reference_image_list]
-    corr_im_paths = [corr_set_config.correspondence_im_path]
-    ref_featurs_pos = [corr_set_config.reference_feature_poitions]
+    # corr_im_paths = [corr_set_config.correspondence_im_path]
+    # ref_featurs_pos = [corr_set_config.reference_feature_poitions]
 
     input_transform = model_config.input_transform
 
-    corr_set_train = correspondences.Correspondences(corr_set_config.correspondence_path,
-                                                     corr_set_config.correspondence_im_path,
-                                                     input_size=(713, 713),
-                                                     input_transform=input_transform,
-                                                     joint_transform=train_joint_transform_corr,
-                                                     listfile=corr_set_config.correspondence_train_list_file)
+    #corr_set_train = correspondences.Correspondences(corr_set_config.correspondence_path,
+    #                                                 corr_set_config.correspondence_im_path,
+    #                                                 input_size=(713, 713),
+    #                                                 input_transform=input_transform,
+    #                                                 joint_transform=train_joint_transform_corr,
+    #                                                 listfile=corr_set_config.correspondence_train_list_file)
+    scales = [0,1,2,3]
+    corr_set_train = Poladata.MonoDataset(corr_set_config,
+                                          filenames = "00000.jpg",
+                                          height = 192,
+                                          width = 640,
+                                          frame_idxs = [0, -1, 1],
+                                          num_scales = len(scales))
 
     corr_loader_train = DataLoader(
         corr_set_train, batch_size=1, num_workers=args['n_workers'], shuffle=True)
@@ -128,9 +135,10 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
     open(os.path.join(save_folder, str(datetime.datetime.now()) + '.txt'),
          'w').write(str(args) + '\n\n')
 
-    clean_log_before_continuing(os.path.join(
-        save_folder, 'log.log'), start_iter)
-    f_handle = open(os.path.join(save_folder, 'log.log'), 'a', buffering=1)
+    f_handle = open(os.path.join(save_folder, 'log.log'), 'w', buffering=1)
+
+    # clean_log_before_continuing(os.path.join(save_folder, 'log.log'), start_iter)
+    # f_handle = open(os.path.join(save_folder, 'log.log'), 'a', buffering=1)
 
     val_iter = 0
     curr_iter = start_iter
@@ -324,7 +332,7 @@ def get_path_of_startnet(args):
     elif args['startnet'] == 'cs':
         return os.path.join(global_opts['result_path'], 'base-networks', 'pspnet101_cityscapes.pth')
     elif args['startnet'] == 'pola':
-        return os.path.join(global_opts['models_path'],'model_configs.py')
+        return os.path.join(global_opts['models_path'],'base-networks', 'pspnet101_cityscapes.pth')
 
 
 def train_with_clustering_experiment(args):
