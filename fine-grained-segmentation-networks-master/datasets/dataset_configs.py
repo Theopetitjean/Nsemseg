@@ -213,3 +213,5 @@ class PolaConfig(DatasetConfig):
                               14: ignore_label, 15: ignore_label, 16: ignore_label, 17: 5,
                               18: ignore_label, 19: 6, 20: 7, 21: 8, 22: 9, 23: 10, 24: 11, 25: 12, 26: 13, 27: 14,
                               28: 15, 29: ignore_label, 30: ignore_label, 31: 16, 32: 17, 33: 18}
+                          
+        self.reference_image_list = os.path.join(root, 'reference_image_names.txt')
