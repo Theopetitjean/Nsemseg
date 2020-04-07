@@ -16,22 +16,47 @@ import cv2
 import torch
 import torch.utils.data as data
 from torchvision import transforms
+import glob
+
+# -----------------------------------------------------------------------------#
+#                           tentative d'adaptation
+# -----------------------------------------------------------------------------#
+from utils.misc import remap_mask
 
 
-# def pil_loader(path):
-#     # open path as file to avoid ResourceWarning
-#     # (https://github.com/python-pillow/Pillow/issues/835)
-#     # with open(path, 'rb') as f:
-#     #     with Image.open(f) as img:
-#     #
-#     #         return img.convert('RGB')
-#
-#     f = cv2.imread(path)
-#     img = Image.fromarray(f, mode='RGB')
-#
-#     return img
+num_classes = 19
+ignore_label = 255
 
+palette = [128, 64, 128, 244, 35, 232, 70, 70, 70, 102, 102, 156, 190, 153, 153, 153, 153, 153, 250, 170, 30,
+           220, 220, 0, 107, 142, 35, 152, 251, 152, 70, 130, 180, 220, 20, 60, 255, 0, 0, 0, 0, 142, 0, 0, 70,
+           0, 60, 100, 0, 80, 100, 0, 0, 230, 119, 11, 32, 56, 165, 134]
+zero_pad = 256 * 3 - len(palette)
+for i in range(zero_pad):
+    palette.append(0)
 
+def colorize_mask(mask):
+    # mask: numpy array of the mask
+    new_mask = Image.fromarray(mask.astype(np.uint8)).convert('P')
+    new_mask.putpalette(palette)
+
+    return new_mask
+
+# def make_dataset(im_folder, seg_folder, im_file_ending, seg_file_ending):
+#     items = list()
+#     for root, subdirs, files in os.walk(im_folder):
+#         for ff in files:
+#             if ff.endswith(im_file_ending):
+#                 # Create file name for segmentation
+#                 seg_path = os.path.join(seg_folder, root.replace(im_folder, '').strip('/'),
+#                                         ff.replace(im_file_ending, seg_file_ending))
+#                 # If segmentation exists, add it to list of files
+#                 if os.path.isfile(seg_path):
+#                     items.append((os.path.join(root, ff), seg_path))
+#     return items
+
+# -----------------------------------------------------------------------------#
+#                          code original
+# -----------------------------------------------------------------------------#
 def pil_loader(path):
     # ImageFile.LOAD_TRUNCATED_IMAGES = True
     # open path as file to avoid ResourceWarning
@@ -132,8 +157,28 @@ class MonoDataset(data.Dataset):
                  frame_idxs,
                  num_scales,
                  is_train=False,
-                 img_ext='.jpg'):
+                 img_ext='.jpg',
+
+#------------------------------------------------------------------------------#
+                 id_to_trainid=None,
+                 joint_transform=None,
+                 sliding_crop=None,
+                 transform=None,
+                 target_transform=None,
+                 transform_before_sliding=None
+#------------------------------------------------------------------------------#
+                 ):
         super(MonoDataset, self).__init__()
+#------------------------------------------------------------------------------#
+        # ata_path1 = "/media/HDD1/datasets/Creusot_Jan15/Creusot_3/*.jpg"
+        # seg_folder = "media/HDD1/NsemSEG/Result_fold/"
+        # im_file_ending = '.jpg'
+        # seg_file_ending = 'jpg'
+        # self.imgs = make_dataset(data_path1 , seg_folder, im_file_ending, seg_file_ending)
+        # if len(self.imgs) == 0:
+        #     raise RuntimeError('Found 0 images, please check the data set')
+        items = glob.glob("/media/HDD1/datasets/Creusot_Jan15/Creusot_3/*.jpg", recursive=True)
+#------------------------------------------------------------------------------#
 
         self.data_path = data_path
         self.filenames = filenames
@@ -149,6 +194,15 @@ class MonoDataset(data.Dataset):
 
         self.loader = pil_loader
         self.to_tensor = transforms.ToTensor()
+
+#------------------------------------------------------------------------------#
+        self.joint_transform = joint_transform
+        self.sliding_crop = sliding_crop
+        self.transform = transform
+        self.target_transform = target_transform
+        self.transform_before_sliding = transform_before_sliding
+        self.id_to_trainid = id_to_trainid
+#------------------------------------------------------------------------------#
 
         # We need to specify augmentations differently in newer versions of torchvision.
         # We first try the newer tuple version; if this fails we fall back to scalars
@@ -171,7 +225,7 @@ class MonoDataset(data.Dataset):
             self.resize[i] = transforms.Resize((self.height // s, self.width // s),
                                                interpolation=Image.NEAREST)
 
-        self.load_depth = self.check_depth()
+        # self.load_depth = self.check_depth()
 
     def preprocess(self, inputs, color_aug):
         """Resize colour images to the required scales and augment if required
@@ -231,6 +285,39 @@ class MonoDataset(data.Dataset):
         line = self.filenames[index].split()
         folder = line[0]
 
+        img_path, mask_path = self.imgs[index]
+        img, mask = Image.open(img_path).convert('RGB'), Image.open(mask_path)
+
+        if self.id_to_trainid is not None:
+            mask = np.array(mask)
+            mask_copy = mask.copy()
+            for k, v in self.id_to_trainid.items():
+                mask_copy[mask == k] = v
+            mask = Image.fromarray(mask_copy.astype(np.uint8))
+
+        if self.joint_transform is not None:
+            # from 0,1,2,...,255 to 0,1,2,3,... (to set introduced pixels due to transform to ignore)
+            mask = remap_mask(mask, 0, ignore_label)
+            img, mask = self.joint_transform(img, mask)
+            mask = remap_mask(mask, 1, ignore_label)  # back again
+
+        if self.target_transform is not None:
+            mask = self.target_transform(mask)
+
+        if self.sliding_crop is not None:
+            if self.transform_before_sliding is not None:
+                img = self.transform_before_sliding(img)
+            img_slices, slices_info = self.sliding_crop(img)
+            if self.transform is not None:
+                img_slices = [self.transform(e) for e in img_slices]
+            img = torch.stack(img_slices, 0)
+            return img, mask, torch.LongTensor(slices_info)
+        else:
+            if self.transform is not None:
+                img = self.transform(img)
+            return img, mask
+
+
         if len(line) == 3:
             frame_index = int(line[1])
         else:
@@ -287,13 +374,102 @@ class MonoDataset(data.Dataset):
 
             inputs["stereo_T"] = torch.from_numpy(stereo_T)
 
+
         return inputs
 
     def get_color(self, folder, frame_index, side, do_flip):
         raise NotImplementedError
 
-    def check_depth(self):
-        raise NotImplementedError
+
+
+
+
+
+# from sklearn.model_selection import train_test_split
+# import sys
+# from os import walk
+# import os
+# import glob
+#
+#
+#
+# assert(len(sys.argv) > 2)
+#
+#
+#
+# folder = sys.argv[1]
+# split_name = sys.argv[2]
+# folders = [x[0] for x in os.walk(folder)]
+# folders.pop(0)
+# images = []
+# for f in folders:
+#     fol = list(dict.fromkeys(glob.iglob(os.path.join(f, "*.jpg"))))
+#     if 'rain' in f:
+#         lentoremove = len(fol)
+#     else:
+#         lentoremove = len(fol) - 1
+#
+#
+#
+#     removed = os.path.join(f, str(lentoremove).zfill(5) + '.jpg')
+#     fol.remove(removed)
+#     if 'rain' in f:
+#         removed = os.path.join(f, str(1).zfill(5) + '.jpg')
+#         fol.remove(removed)
+#     else:
+#         removed = os.path.join(f, str(0).zfill(5) + '.jpg')
+#         fol.remove(removed)
+#
+#
+#
+#     images += fol
+#
+#
+#
+#
+# # for f in folders:
+# #     images.append('test')
+#
+#
+#
+# # f = glob.glob(folder + '/**/*.jpg', recursive=True)
+#
+#
+#
+#
+# splits = train_test_split(images, test_size=0.1, random_state=0)
+# qualifier = ['train', 'val']
+#
+#
+#
+#
+# for idx, lst in enumerate(splits):
+#     fileout = f'{split_name}/{qualifier[idx]}_files.txt'
+#     with open(fileout, 'w') as outfile:
+#         for img in lst:
+#             img_ = img.split('/')[-1]
+#             index = str(int(img_.split('.')[0]))
+#             if not int(index) == 0:
+#                 firstpart = img.split('/')[-2]
+#                 to_append = f'{firstpart} {index} l\n'
+#                 outfile.write(to_append)
+#
+#
+#
+# # print(len(f))
+# # print(len(out[0]))
+# # print(len(out[1]))
+
+
+
+
+
+    #def check_depth(self):
+    #    raise NotImplementedError
+
+    #def get_depth(self, folder, frame_index, side, do_flip):
+    #    raise NotImplementedError
+
 
     def get_depth(self, folder, frame_index, side, do_flip):
         raise NotImplementedError
