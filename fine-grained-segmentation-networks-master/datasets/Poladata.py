@@ -137,9 +137,12 @@ def pil_loader(path):
 
 class MonoDataset(data.Dataset):
     def __init__(self, im_folder, seg_folder, im_file_ending, seg_file_ending='png', id_to_trainid=None, joint_transform=None, sliding_crop=None, transform=None, target_transform=None, transform_before_sliding=None):
-        self.imgs = make_dataset(im_folder, seg_folder, im_file_ending, seg_file_ending)
+        # self.imgs = make_dataset(im_folder, seg_folder, im_file_ending, seg_file_ending)
+
+        self.imgs = glob.glob("/media/HDD1/datasets/Creusot_Jan15/Creusot_3/*.jpg", recursive=True)
         if len(self.imgs) == 0:
             raise RuntimeError('Found 0 images, please check the data set')
+
 
         self.joint_transform = joint_transform
         self.sliding_crop = sliding_crop
