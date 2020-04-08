@@ -153,7 +153,7 @@ class MonoDataset(data.Dataset):
 
     def __getitem__(self, index):
         img_path, mask_path = self.imgs[index]
-        img, mask = piloader(img_path), piloader(mask_path)
+        img, mask = pil_loader(img_path), pil_loader(mask_path)
 
         mask = np.array(mask)
         mask_copy = mask.copy()
