@@ -192,18 +192,18 @@ class PolaConfig(DatasetConfig):
         super(PolaConfig, self).__init__()
         root = global_opts['pola_path']
 
-        self.train_im_folder = os.path.join(root, 'leftImg8bit', 'train')
-        self.train_seg_folder = os.path.join(root, 'gtFine', 'train')
+        self.train_im_folder = root
+        self.train_seg_folder = root
 
-        self.train_extra_im_folder = os.path.join(root, 'leftImg8bit_trainextra' 'leftImg8bit', 'train_extra')
-        self.train_extra_seg_folder = os.path.join(root, 'gtCoarse', 'gtCoarse', 'train_extra')
+        self.train_extra_im_folder = '/media/HDD1/datasets/Creusot_Jan15/Creusot_2'
+        self.train_extra_seg_folder = root
 
-        self.val_im_folder = os.path.join(root, 'leftImg8bit', 'val')
-        self.val_seg_folder = os.path.join(root, 'gtFine', 'val')
-        self.test_im_folder = os.path.join(root, 'leftImg8bit', 'test')
+        self.val_im_folder = root
+        self.val_seg_folder = root
+        self.test_im_folder = root
 
-        self.im_file_ending = 'leftImg8bit.png'
-        self.seg_file_ending = 'gtFine_labelIds.png'
+        self.im_file_ending = '.jpg'
+        self.seg_file_ending = 'gtFine_labelIds.jpg'
 
         ignore_label = 255
         self.ignore_label = ignore_label
@@ -213,5 +213,6 @@ class PolaConfig(DatasetConfig):
                               14: ignore_label, 15: ignore_label, 16: ignore_label, 17: 5,
                               18: ignore_label, 19: 6, 20: 7, 21: 8, 22: 9, 23: 10, 24: 11, 25: 12, 26: 13, 27: 14,
                               28: 15, 29: ignore_label, 30: ignore_label, 31: 16, 32: 17, 33: 18}
-                          
-        self.reference_image_list = os.path.join(root, 'reference_image_names.txt')
+
+        self.reference_image_list = (root)
+        # self.reference_image_list = os.path.join(root, 'reference_image_names.txt')
