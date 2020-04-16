@@ -117,6 +117,7 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
     # corr_set_train = Poladata.MonoDataset(corr_set_config,
     #                                       seg_folder = "media/HDD1/NsemSEG/Result_fold/" ,
     #                                       im_file_ending = ".jpg" )
+
     corr_set_train = Poladata.MonoDataset(corr_set_config.train_im_folder,
                                           corr_set_config.train_seg_folder,
                                           im_file_ending = ".jpg",
@@ -124,14 +125,13 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
                                           id_to_trainid = None,
                                           joint_transform = None,
                                           sliding_crop = None,
-                                          transform = None,
+                                          transform = input_transform,
                                           target_transform = None,
                                           transform_before_sliding = None
                                           )
     # print (corr_set_train)
     # print(corr_set_train.mask)
-    corr_loader_train = DataLoader(
-        corr_set_train, batch_size=1, num_workers=args['n_workers'], shuffle=True)
+    corr_loader_train = DataLoader(corr_set_train, batch_size=1, num_workers=args['n_workers'], shuffle=True)
 
     # print(corr_loader_train)
     seg_loss_fct = torch.nn.CrossEntropyLoss(reduction='elementwise_mean')
@@ -167,6 +167,10 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
         # print('-----------------------------------------------------------------')
         # print (f'ref_image_lists est: {ref_image_lists},model_config es : {model_config} , net es: {net} , max feature par image es : {max_num_features_per_image} ')
         # print('-----------------------------------------------------------------')
+
+
+        # print('le next du loader es : ---------------')
+        # print(next(iter(corr_loader_train)))
 
         features = extract_features_for_reference_nocorr(net, model_config, ref_image_lists,
                                                     len(ref_image_lists),
@@ -228,10 +232,11 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
             data_samples = []
             extract_label_count = 0
             while (extract_label_count < args['chunk_size']) and (cluster_training_count + extract_label_count < args['cluster_interval']) and (val_iter + extract_label_count < args['val_interval']) and (extract_label_count + curr_iter <= args['max_iter']):
-                img_ref, img_other, pts_ref, pts_other, _ = next(
-                    iter(corr_loader_train))
+                img_ref, img_other, pts_ref, pts_other, _ = next(iter(corr_loader_train))
 
-                print(img_ref)
+                # print('le next du loader es : ---------------')
+                # print(next(iter(corr_loader_train)))
+                # print(img_ref)
 
                 # Transfer data to device
                 img_ref = img_ref.to(device)
@@ -467,4 +472,5 @@ if __name__ == '__main__':
 # # print(len(f))
 # # print(len(out[0]))
 # # print(len(out[1]))
+
 
