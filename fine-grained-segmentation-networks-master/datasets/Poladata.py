@@ -11,12 +11,18 @@ import os
 import random
 import numpy as np
 import copy
+
 from PIL import Image, ImageFile  # using pillow-simd for increased speed
+
 import cv2
 import torch
 import torch.utils.data as data
 from torchvision import transforms
 import glob
+
+import json
+from torch.utils import data
+from utils.misc import get_global_opts, remap_mask
 
 # -----------------------------------------------------------------------------#
 #                           tentative d'adaptation
@@ -58,6 +64,7 @@ def make_dataset(im_folder, seg_folder, im_file_ending, seg_file_ending):
 #                          code original
 # -----------------------------------------------------------------------------#
 def pil_loader(path):
+    print('on entre dans PIL Loader maintenant -------------------------' )
     # ImageFile.LOAD_TRUNCATED_IMAGES = True
     # open path as file to avoid ResourceWarning
     # (https://github.com/python-pillow/Pillow/issues/835)
@@ -131,18 +138,27 @@ def pil_loader(path):
             # for x in range(image.shape[2]):
             #     image[:, :, x] = inte
             # image = np.uint8(image)
+            print(f'limage dans le dataloader es : {image}')
+            print('untrucrandomquisevoitbiencimportant')
 
             return Image.fromarray(image).convert('RGB')
 
 
 class MonoDataset(data.Dataset):
-    def __init__(self, im_folder, seg_folder, im_file_ending, seg_file_ending='png', id_to_trainid=None, joint_transform=None, sliding_crop=None, transform=None, target_transform=None, transform_before_sliding=None):
-        # self.imgs = make_dataset(im_folder, seg_folder, im_file_ending, seg_file_ending)
+    def __init__(self, im_folder, seg_folder, im_file_ending, seg_file_ending='jpg', id_to_trainid=None, joint_transform=None, sliding_crop=None, transform=None, target_transform=None, transform_before_sliding=None):
 
-        self.imgs = glob.glob("/media/HDD1/datasets/Creusot_Jan15/Creusot_3/*.jpg", recursive=True)
+        print('ici on rentre dans monodataset et ca cest beau -------------------------------')
+        print(f'le path avec le folder dimg a lentrer de monodataset es : {im_folder}')
+        print(f'le folder nomé segfolder es init sur le fold suivant : {seg_folder}')
+        print(f'le param nomé im_file_ending es set sur la valeur suivante : {im_file_ending}')
+
+        self.imgs = make_dataset(im_folder, seg_folder, im_file_ending, seg_file_ending)
+        # self.imgs = glob.glob("/media/HDD1/datasets/Creusot_Jan15/Creusot_3/*.jpg", recursive=True)
         if len(self.imgs) == 0:
             raise RuntimeError('Found 0 images, please check the data set')
 
+        print(self.imgs)
+        print(len(self.imgs))
 
         self.joint_transform = joint_transform
         self.sliding_crop = sliding_crop
@@ -150,10 +166,17 @@ class MonoDataset(data.Dataset):
         self.target_transform = target_transform
         self.transform_before_sliding = transform_before_sliding
         self.id_to_trainid = id_to_trainid
+        self.loader = pil_loader
 
     def __getitem__(self, index):
+
+        print('---------------------------entre dans getitem------------------------')
+
         img_path, mask_path = self.imgs[index]
         img, mask = pil_loader(img_path), pil_loader(mask_path)
+
+        print(img)
+        print(mask)
 
         mask = np.array(mask)
         mask_copy = mask.copy()
