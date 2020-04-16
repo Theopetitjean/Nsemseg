@@ -186,21 +186,19 @@ class CmuConfig(DatasetConfig):
         self.point_cloud_root = os.path.join(root, 'data_for_3d_segmentation_training')
 
         
-        
 class PolaConfig(DatasetConfig):
     def __init__(self):
         super(PolaConfig, self).__init__()
         root = global_opts['pola_path']
+        root2 = global_opts['result_path']
 
-        self.train_im_folder = root
-        self.train_seg_folder = root
+        self.train_im_folder = os.path.join(root, 'Creusot_3')
 
-        self.train_extra_im_folder = '/media/HDD1/datasets/Creusot_Jan15/Creusot_2'
-        self.train_extra_seg_folder = root
+        self.train_seg_folder = root2
 
-        self.val_im_folder = root
+        self.val_im_folder = os.path.join(root, 'Creusot_3')
         self.val_seg_folder = root
-        self.test_im_folder = root
+        self.test_im_folder = os.path.join(root, 'Creusot_3')
 
         self.im_file_ending = '.jpg'
         self.seg_file_ending = 'gtFine_labelIds.jpg'
@@ -214,5 +212,5 @@ class PolaConfig(DatasetConfig):
                               18: ignore_label, 19: 6, 20: 7, 21: 8, 22: 9, 23: 10, 24: 11, 25: 12, 26: 13, 27: 14,
                               28: 15, 29: ignore_label, 30: ignore_label, 31: 16, 32: 17, 33: 18}
 
-        self.reference_image_list = (root)
+        self.reference_image_list = glob.glob("/media/HDD1/datasets/Creusot_Jan15/Creusot_3/*.jpg", recursive=True)
         # self.reference_image_list = os.path.join(root, 'reference_image_names.txt')
