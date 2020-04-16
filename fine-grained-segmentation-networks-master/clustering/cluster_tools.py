@@ -37,12 +37,19 @@ def extract_features_for_reference_nocorr(net, net_config, train_set, num_images
     features = []
     t0 = time.time()
 
+
+
     if num_images < len(train_set):
         sample_ids = np.random.choice(len(train_set), num_images, replace=False)
     else:
         sample_ids = list(range(len(train_set)))
 
     for counter, iii in enumerate(sample_ids):
+        
+        # print(f'counter es egal a : {counter} et iii es egal a : {iii}')
+        # print('on a aussi  enumerate(sample_ids) egal a ')
+        # print(sample_ids)
+
         img_slices, mask, slices_info = train_set[iii]
 
         # run network on all slizes
