@@ -152,13 +152,14 @@ class MonoDataset(data.Dataset):
         print(f'le folder nomé segfolder es init sur le fold suivant : {seg_folder}')
         print(f'le param nomé im_file_ending es set sur la valeur suivante : {im_file_ending}')
 
-        self.imgs = make_dataset(im_folder, seg_folder, im_file_ending, seg_file_ending)
-        # self.imgs = glob.glob("/media/HDD1/datasets/Creusot_Jan15/Creusot_3/*.jpg", recursive=True)
+        # self.imgs = make_dataset(im_folder, seg_folder, im_file_ending, seg_file_ending)
+        self.imgs = glob.glob(f'{im_folder}/*{seg_file_ending}')
         if len(self.imgs) == 0:
             raise RuntimeError('Found 0 images, please check the data set')
 
-        print(self.imgs)
-        print(len(self.imgs))
+        # print('on rentre dans la deuxeime partie du init --------')
+        # print(self.imgs)
+        # print(len(self.imgs))
 
         self.joint_transform = joint_transform
         self.sliding_crop = sliding_crop
@@ -172,17 +173,18 @@ class MonoDataset(data.Dataset):
 
         print('---------------------------entre dans getitem------------------------')
 
-        img_path, mask_path = self.imgs[index]
+        img_path, mask_path = self.imgs[index],self.imgs[index]
         img, mask = pil_loader(img_path), pil_loader(mask_path)
 
-        print(img)
-        print(mask)
+        # print(img)
+        # print(mask)
 
-        mask = np.array(mask)
-        mask_copy = mask.copy()
-        for k, v in self.id_to_trainid.items():
-            mask_copy[mask == k] = v
-        mask = Image.fromarray(mask_copy.astype(np.uint8))
+        mask = torch.zeros(img.size)
+        # mask = np.array(mask)
+        # mask_copy = mask
+        # for k, v in self.id_to_trainid.items():
+        #     mask_copy[mask == k] = v
+        # mask = Image.fromarray(mask_copy.astype(np.uint8))
 
         if self.joint_transform is not None:
             # from 0,1,2,...,255 to 0,1,2,3,... (to set introduced pixels due to transform to ignore)
@@ -208,7 +210,6 @@ class MonoDataset(data.Dataset):
 
     def __len__(self):
         return len(self.imgs)
-
 
 
 
