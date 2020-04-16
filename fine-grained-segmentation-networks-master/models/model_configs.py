@@ -18,10 +18,6 @@ class PspnetCityscapesConfig(ModelConfig):
 
         self.input_transform = standard_transforms.Compose([
             standard_transforms.ToTensor(),
-            # Very ugly hack to counteract the normalization of ToTensor!
-            standard_transforms.Normalize(*([0, 0, 0], [1.0/255.0, 1.0/255.0, 1.0/255.0])),
-            standard_transforms.Normalize(*self.mean_std),
-            extended_transforms.RGB2BGR()
         ])
 
         self.pre_validation_transform = standard_transforms.Compose([
