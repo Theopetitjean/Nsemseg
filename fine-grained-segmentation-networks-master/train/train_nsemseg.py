@@ -11,6 +11,7 @@ import torchvision.transforms as standard_transforms
 from torch import optim
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
+import glob
 
 import context
 
@@ -25,8 +26,9 @@ from utils.misc import check_mkdir, AverageMeter, freeze_bn, get_global_opts, re
 from utils.validator import CorrValidator
 from layers.feature_loss import FeatureLoss
 from layers.cluster_correspondence_loss import ClusterCorrespondenceLoss
+
 from clustering import clustering
-from clustering.cluster_tools import extract_features_for_reference_nocorr, save_cluster_features_as_segmentations, assign_cluster_ids_to_correspondence_points
+from clustering.cluster_tools import extract_features_for_reference_nocorr, extract_features_for_reference, save_cluster_features_as_segmentations
 from clustering.clustering import preprocess_features
 
 
@@ -95,6 +97,10 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
         corr_set_config2 = data_configs.RobotcarConfig()
 
     ref_image_lists = [corr_set_config.reference_image_list]
+
+    # ref_image_lists = glob.glob("/media/HDD1/datasets/Creusot_Jan15/Creusot_3/*.jpg", recursive=True)
+    # print(f'ici on print ref image list ---------------------------------------------------- {ref_image_lists}')
+    # print(corr_set_config)
     # corr_im_paths = [corr_set_config.correspondence_im_path]
     # ref_featurs_pos = [corr_set_config.reference_feature_poitions]
 
@@ -107,16 +113,27 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
     #                                                 joint_transform=train_joint_transform_corr,
     #                                                 listfile=corr_set_config.correspondence_train_list_file)
     scales = [0,1,2,3]
-    corr_set_train = Poladata.MonoDataset(corr_set_config,
-                                          filenames = "00000.jpg",
-                                          height = 192,
-                                          width = 640,
-                                          frame_idxs = [0, -1, 1],
-                                          num_scales = len(scales))
 
+    # corr_set_train = Poladata.MonoDataset(corr_set_config,
+    #                                       seg_folder = "media/HDD1/NsemSEG/Result_fold/" ,
+    #                                       im_file_ending = ".jpg" )
+    corr_set_train = Poladata.MonoDataset(corr_set_config.train_im_folder,
+                                          corr_set_config.train_seg_folder,
+                                          im_file_ending = ".jpg",
+                                          # input_transform = input_transform,
+                                          id_to_trainid = None,
+                                          joint_transform = None,
+                                          sliding_crop = None,
+                                          transform = None,
+                                          target_transform = None,
+                                          transform_before_sliding = None
+                                          )
+    # print (corr_set_train)
+    # print(corr_set_train.mask)
     corr_loader_train = DataLoader(
         corr_set_train, batch_size=1, num_workers=args['n_workers'], shuffle=True)
 
+    # print(corr_loader_train)
     seg_loss_fct = torch.nn.CrossEntropyLoss(reduction='elementwise_mean')
 
     # Optimizer setup
@@ -146,9 +163,14 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
 
         net.eval()
         net.output_features = True
+        # max_num_features_per_image = args['max_features_per_image']
+        # print('-----------------------------------------------------------------')
+        # print (f'ref_image_lists est: {ref_image_lists},model_config es : {model_config} , net es: {net} , max feature par image es : {max_num_features_per_image} ')
+        # print('-----------------------------------------------------------------')
 
-        features = extract_features_for_reference_nocorr(net, model_config, ref_image_lists, len(ref_image_lists),
-                                                         max_num_features_per_image=args['max_features_per_image'])
+        features = extract_features_for_reference_nocorr(net, model_config, ref_image_lists,
+                                                    len(ref_image_lists),
+                                                    max_num_features_per_image=args['max_features_per_image'])
 
         cluster_features = np.vstack(features)
         del features
@@ -208,6 +230,8 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
             while (extract_label_count < args['chunk_size']) and (cluster_training_count + extract_label_count < args['cluster_interval']) and (val_iter + extract_label_count < args['val_interval']) and (extract_label_count + curr_iter <= args['max_iter']):
                 img_ref, img_other, pts_ref, pts_other, _ = next(
                     iter(corr_loader_train))
+
+                print(img_ref)
 
                 # Transfer data to device
                 img_ref = img_ref.to(device)
@@ -388,3 +412,59 @@ if __name__ == '__main__':
         'n_workers': 1,  # set to 0 for debugging
     }
     train_with_clustering_experiment(args)
+
+
+
+#
+# from sklearn.model_selection import train_test_split
+# import sys
+# from os import walk
+# import os
+# import glob
+#
+# assert(len(sys.argv) > 2)
+#
+# folder = sys.argv[1]
+# split_name = sys.argv[2]
+# folders = [x[0] for x in os.walk(folder)]
+# folders.pop(0)
+# images = []
+# for f in folders:
+#     fol = list(dict.fromkeys(glob.iglob(os.path.join(f, "*.jpg"))))
+#     if 'rain' in f:
+#         lentoremove = len(fol)
+#     else:
+#         lentoremove = len(fol) - 1
+#
+#     removed = os.path.join(f, str(lentoremove).zfill(5) + '.jpg')
+#     fol.remove(removed)
+#     if 'rain' in f:
+#         removed = os.path.join(f, str(1).zfill(5) + '.jpg')
+#         fol.remove(removed)
+#     else:
+#         removed = os.path.join(f, str(0).zfill(5) + '.jpg')
+#         fol.remove(removed)
+#
+#     images += fol
+#
+# # for f in folders:
+# #     images.append('test')
+# # f = glob.glob(folder + '/**/*.jpg', recursive=True)
+# splits = train_test_split(images, test_size=0.1, random_state=0)
+# qualifier = ['train', 'val']
+#
+# for idx, lst in enumerate(splits):
+#     fileout = f'{split_name}/{qualifier[idx]}_files.txt'
+#     with open(fileout, 'w') as outfile:
+#         for img in lst:
+#             img_ = img.split('/')[-1]
+#             index = str(int(img_.split('.')[0]))
+#             if not int(index) == 0:
+#                 firstpart = img.split('/')[-2]
+#                 to_append = f'{firstpart} {index} l\n'
+#                 outfile.write(to_append)
+#
+# # print(len(f))
+# # print(len(out[0]))
+# # print(len(out[1]))
+
