@@ -118,16 +118,30 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
     #                                       seg_folder = "media/HDD1/NsemSEG/Result_fold/" ,
     #                                       im_file_ending = ".jpg" )
 
+    train_joint_transform_corr = corr_transforms.Compose([
+        corr_transforms.CorrResize(1024),
+        corr_transforms.CorrRandomCrop(713)
+    ])
+
+    sliding_crop = joint_transforms.SlidingCropImageOnly(713, 2/3.)
+
+
+    # corr_set_train = correspondences.Correspondences(corr_set_config.train_im_folder,
+    #                                                 corr_set_config.train_im_folder,
+    #                                                 input_size=(713, 713),
+    #                                                 input_transform=input_transform,
+    #                                                 joint_transform=train_joint_transform_corr,
+    #                                                 listfile=None)
+    #
     corr_set_train = Poladata.MonoDataset(corr_set_config.train_im_folder,
                                           corr_set_config.train_seg_folder,
                                           im_file_ending = ".jpg",
-                                          # input_transform = input_transform,
                                           id_to_trainid = None,
-                                          joint_transform = None,
-                                          sliding_crop = None,
+                                          joint_transform = train_joint_transform_corr,
+                                          sliding_crop = sliding_crop,
                                           transform = input_transform,
-                                          target_transform = None,
-                                          transform_before_sliding = None
+                                          target_transform = train_joint_transform_corr,
+                                          transform_before_sliding = sliding_crop
                                           )
     # print (corr_set_train)
     # print(corr_set_train.mask)
@@ -472,5 +486,3 @@ if __name__ == '__main__':
 # # print(len(f))
 # # print(len(out[0]))
 # # print(len(out[1]))
-
-
