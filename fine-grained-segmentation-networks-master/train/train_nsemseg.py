@@ -96,7 +96,7 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
         corr_set_config1 = data_configs.CmuConfig()
         corr_set_config2 = data_configs.RobotcarConfig()
 
-    ref_image_lists = [corr_set_config.reference_image_list]
+    ref_image_lists = corr_set_config.reference_image_list
 
     # ref_image_lists = glob.glob("/media/HDD1/datasets/Creusot_Jan15/Creusot_3/*.jpg", recursive=True)
     # print(f'ici on print ref image list ---------------------------------------------------- {ref_image_lists}')
@@ -118,34 +118,38 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
     #                                       seg_folder = "media/HDD1/NsemSEG/Result_fold/" ,
     #                                       im_file_ending = ".jpg" )
 
-    train_joint_transform_corr = corr_transforms.Compose([
-        corr_transforms.CorrResize(1024),
-        corr_transforms.CorrRandomCrop(713)
+    train_joint_transform = joint_transforms.Compose([
+    # train_joint_transform_corr = corr_transforms.Compose([
+        # corr_transforms.CorrResize(1024),
+        # corr_transforms.CorrRandomCrop(713)
+        joint_transforms.Resize(1024),
+        joint_transforms.RandomCrop(713)
     ])
 
-    sliding_crop = joint_transforms.SlidingCropImageOnly(713, 2/3.)
+    sliding_crop = joint_transforms.SlidingCrop(713, 2/3.,255)
 
 
     # corr_set_train = correspondences.Correspondences(corr_set_config.train_im_folder,
     #                                                 corr_set_config.train_im_folder,
     #                                                 input_size=(713, 713),
     #                                                 input_transform=input_transform,
-    #                                                 joint_transform=train_joint_transform_corr,
+    #                                                 joint_transform=train_joint_transform,
     #                                                 listfile=None)
-    #
+
     corr_set_train = Poladata.MonoDataset(corr_set_config.train_im_folder,
                                           corr_set_config.train_seg_folder,
                                           im_file_ending = ".jpg",
                                           id_to_trainid = None,
-                                          joint_transform = train_joint_transform_corr,
+                                          joint_transform = train_joint_transform,
                                           sliding_crop = sliding_crop,
                                           transform = input_transform,
-                                          target_transform = train_joint_transform_corr,
-                                          transform_before_sliding = sliding_crop
+                                          target_transform = None,#train_joint_transform,
+                                          transform_before_sliding = None #sliding_crop
                                           )
-    # print (corr_set_train)
+    #print (corr_set_train)
     # print(corr_set_train.mask)
-    corr_loader_train = DataLoader(corr_set_train, batch_size=1, num_workers=args['n_workers'], shuffle=True)
+    corr_loader_train = DataLoader(corr_set_train, batch_size= 1, num_workers=args['n_workers'], shuffle=True)
+    # corr_loader_train = input_transform(corr_loader_train)
 
     # print(corr_loader_train)
     seg_loss_fct = torch.nn.CrossEntropyLoss(reduction='elementwise_mean')
@@ -186,8 +190,14 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
         # print('le next du loader es : ---------------')
         # print(next(iter(corr_loader_train)))
 
-        features = extract_features_for_reference_nocorr(net, model_config, ref_image_lists,
-                                                    len(ref_image_lists),
+        # features, _ = extract_features_for_reference(net, model_config, ref_image_lists,
+        #                                              corr_im_paths, ref_featurs_pos,
+        #                                              max_num_features_per_image=args['max_features_per_image'],
+        #                                              fraction_correspondeces=0.5)
+        print('ici on a la len de la ref im list --------------------------------------------------------')
+        print(len(ref_image_lists))
+        features = extract_features_for_reference_nocorr(net, model_config, corr_set_train,
+                                                    10,
                                                     max_num_features_per_image=args['max_features_per_image'])
 
         cluster_features = np.vstack(features)
@@ -198,8 +208,7 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
             cluster_features, verbose=True, use_gpu=False)
 
         # save cluster centroids
-        h5f = h5py.File(os.path.join(
-            save_folder, 'centroids_%d.h5' % curr_iter), 'w')
+        h5f = h5py.File(os.path.join(save_folder, 'centroids_%d.h5' % curr_iter), 'w')
         h5f.create_dataset('cluster_centroids', data=cluster_centroids)
         h5f.create_dataset('pca_transform_Amat', data=pca_info[0])
         h5f.create_dataset('pca_transform_bvec', data=pca_info[1])
@@ -238,6 +247,7 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
         while cluster_training_count < args['cluster_interval'] and curr_iter <= args['max_iter']:
 
             # First extract cluster labels using saved network checkpoint
+            print('on rentre dans la boucle extract cluster_______________________________________________')
             net.to("cpu")
             net_for_clustering.to(device)
             net_for_clustering.eval()
@@ -246,6 +256,9 @@ def train_with_clustering(save_folder, tmp_seg_folder, startnet, args):
             data_samples = []
             extract_label_count = 0
             while (extract_label_count < args['chunk_size']) and (cluster_training_count + extract_label_count < args['cluster_interval']) and (val_iter + extract_label_count < args['val_interval']) and (extract_label_count + curr_iter <= args['max_iter']):
+                # img_ref, img_other, pts_ref, pts_other, _ = next(iter(corr_set_train))
+                corr_loader_train = input_transform(corr_loader_train)
+                print(f'la valeur de corr loader train es de {corr_loader_train} lors de l iteration : {curr_iter}')
                 img_ref, img_other, pts_ref, pts_other, _ = next(iter(corr_loader_train))
 
                 # print('le next du loader es : ---------------')
@@ -391,7 +404,7 @@ def train_with_clustering_experiment(args):
 if __name__ == '__main__':
     args = {
         # general training settings
-        'train_batch_size': 1,
+        'train_batch_size': 2,
         # probability of propagating error for reference image instead of target imare (set to None to use both)
         'fraction_reference_bp': 0.5,
         'lr': 1e-4 / sqrt(16 / 1),
@@ -409,7 +422,7 @@ if __name__ == '__main__':
 
         # dataset settings
         'corr_set': 'pola',  # 'cmu', 'rc', 'both' or 'none'
-        'max_features_per_image': 500,  # dont set to high (RAM runs out)
+        'max_features_per_image': 3900,  # dont set to high (RAM runs out)
 
         # clustering settings
         'n_clusters': 100,
@@ -428,7 +441,7 @@ if __name__ == '__main__':
         'chunk_size': 50,
         'print_freq': 10,
         'stride_rate': 2 / 3.,
-        'n_workers': 1,  # set to 0 for debugging
+        'n_workers': 5,  # set to 0 for debugging
     }
     train_with_clustering_experiment(args)
 
